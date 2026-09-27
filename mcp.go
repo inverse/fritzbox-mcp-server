@@ -18,7 +18,7 @@ import (
 type mcpServer struct {
 	mcpServer   *server.MCPServer
 	tr064       *client
-	lua         *restclient.RestClient
+	rest        *restclient.RestClient
 	registry    *registry
 	docsIndex   *index
 	configError error // error if configuration is missing or invalid
@@ -28,7 +28,7 @@ type mcpServer struct {
 func newServer(name, version string, tr064Client *client, restClient *restclient.RestClient, registry *registry, docsIndex *index, configErr error) *mcpServer {
 	s := &mcpServer{
 		tr064:       tr064Client,
-		lua:         restClient,
+		rest:        restClient,
 		registry:    registry,
 		docsIndex:   docsIndex,
 		configError: configErr,
@@ -43,8 +43,8 @@ func newServer(name, version string, tr064Client *client, restClient *restclient
 	// Register generic execution tool
 	s.registerExecutionTools()
 
-	// Register non-TR-064 data.lua tools (e.g. WiFi channel environment)
-	s.registerLuaTools()
+	// Register REST-backed tools (non-TR-064, e.g. wifi channel environment)
+	s.registerRestTools()
 
 	return s
 }
@@ -416,10 +416,10 @@ func (s *mcpServer) handleCallAction(args map[string]interface{}) (*mcp.CallTool
 	return mcp.NewToolResultText(string(data)), nil
 }
 
-// registerLuaTools registers tools backed by the FRITZ!Box web UI (data.lua)
-// rather than TR-064.
-func (s *mcpServer) registerLuaTools() {
-	if s.lua == nil {
+// registerRestTools registers tools backed by the FRITZ!Box REST client
+// (web UI api/v0) rather than TR-064.
+func (s *mcpServer) registerRestTools() {
+	if s.rest == nil {
 		return
 	}
 	s.mcpServer.AddTool(mcp.Tool{
@@ -437,7 +437,7 @@ func (s *mcpServer) handleWifiChannelEnvironment(args map[string]interface{}) (*
 	if s.configError != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Action failed: %v", s.configError)), nil
 	}
-	entries, status, err := s.lua.GetChannelEnvironment(context.Background(), 90*time.Second)
+	entries, status, err := s.rest.GetChannelEnvironment(context.Background(), 90*time.Second)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to fetch channel environment: %v", err)), nil
 	}
