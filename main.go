@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kambriso/fritzbox-mcp-server/restclient"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -88,6 +89,7 @@ func run() error {
 
 	// Step 2-4: Disover services (only if config is valid)
 	var tr064Client *client
+	var restClient *restclient.RestClient
 	var registry *registry
 
 	if configErr == nil {
@@ -95,6 +97,10 @@ func run() error {
 
 		// Create TR-064 client
 		tr064Client = newClient(cfg.baseURL(), cfg.Username, cfg.Password, *debug)
+
+		// Create REST client for web-UI endpoints (data.lua), e.g. wifi
+		// channel environment.
+		restClient = restclient.NewRestClient(cfg.webURL(), cfg.Username, cfg.Password, *debug)
 
 		// Discover services from FRITZ!Box
 		log.Println("Discovering TR-064 services from FRITZ!Box...")
@@ -119,7 +125,7 @@ func run() error {
 
 	// Step 6: Create and start MCP server
 	log.Printf("Starting MCP server v%s...\n", version)
-	mcpSrv := newServer(serverName, version, tr064Client, registry, docsIndex, configErr)
+	mcpSrv := newServer(serverName, version, tr064Client, restClient, registry, docsIndex, configErr)
 
 	log.Println("MCP server ready")
 	return server.ServeStdio(mcpSrv.getMCPServer())
